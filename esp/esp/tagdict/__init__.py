@@ -944,7 +944,7 @@ all_program_tags = {
     },
     'teacherreg_active_fields': {
         'is_boolean': False,
-        'help_text': 'Select the field(s) you want to show to teachers during teacher registration (required fields are always shown)',
+        'help_text': 'Select the field(s) you want to show to teachers during teacher registration. Required fields are always shown unless a matching teacherreg_default_* tag supplies their value.',
         'default': '_ALL_',
         'category': 'class',
         'is_setting': True,

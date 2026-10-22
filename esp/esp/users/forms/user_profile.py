@@ -1,6 +1,6 @@
 from django import forms
 from esp.users.forms import _states
-from esp.tagdict.active_fields import LEGACY_TAG_KEYS, optional_field_names, parse_inactive_fields
+from esp.tagdict.active_fields import LEGACY_TAG_KEYS, ALL_FIELDS, NO_FIELDS, optional_field_names, parse_inactive_fields
 from esp.tagdict.models import Tag
 from esp.utils.forms import SizedCharField, FormWithRequiredCss, FormUnrestrictedOtherUser, FormWithTagInitialValues, StrippedCharField
 from esp.db.forms import AjaxForeignKeyNewformField
@@ -203,12 +203,15 @@ class StudentInfoForm(FormUnrestrictedOtherUser):
         if (not show_studentrep_application) or show_studentrep_application == "no_expl":
             del self.fields['studentrep_expl']
 
-        if not Tag.getBooleanTag('show_student_tshirt_size_options'):
+        if not Tag.getBooleanTag('show_student_tshirt_size_options') and \
+                not _is_field_explicitly_active('student_profile_active_fields', 'shirt_size'):
             del self.fields['shirt_size']
-        if not Tag.getBooleanTag('studentinfo_shirt_type_selection'):
+        if not Tag.getBooleanTag('studentinfo_shirt_type_selection') and \
+                not _is_field_explicitly_active('student_profile_active_fields', 'shirt_type'):
             del self.fields['shirt_type']
 
-        if not Tag.getBooleanTag('show_student_vegetarianism_options'):
+        if not Tag.getBooleanTag('show_student_vegetarianism_options') and \
+                not _is_field_explicitly_active('student_profile_active_fields', 'food_preference'):
             del self.fields['food_preference']
 
         #   Allow grade range of students to be customized by a Tag (default is 7-12)
@@ -232,13 +235,16 @@ class StudentInfoForm(FormUnrestrictedOtherUser):
                     new_choices.append(x)
             self.fields['graduation_year'].choices = new_choices
 
-        if not Tag.getBooleanTag('student_profile_gender_field'):
+        if not Tag.getBooleanTag('student_profile_gender_field') and \
+                not _is_field_explicitly_active('student_profile_active_fields', 'gender'):
             del self.fields['gender']
 
-        if not Tag.getBooleanTag('student_profile_pronoun_field'):
+        if not Tag.getBooleanTag('student_profile_pronoun_field') and \
+                not _is_field_explicitly_active('student_profile_active_fields', 'pronoun'):
             del self.fields['pronoun']
 
-        if not Tag.getBooleanTag('ask_student_about_transportation_to_program'):
+        if not Tag.getBooleanTag('ask_student_about_transportation_to_program') and \
+                not _is_field_explicitly_active('student_profile_active_fields', 'transportation'):
             del self.fields['transportation']
 
         if not Tag.getBooleanTag('allow_change_grade_level'):
@@ -253,14 +259,16 @@ class StudentInfoForm(FormUnrestrictedOtherUser):
                     self.fields['dob'].required = False
 
         #   Add field asking about medical needs if directed by the Tag
-        if Tag.getBooleanTag('student_medical_needs'):
+        if Tag.getBooleanTag('student_medical_needs') or \
+                _is_field_explicitly_active('student_profile_active_fields', 'medical_needs'):
             self.fields['medical_needs'].widget = forms.Textarea(attrs={'cols': 40, 'rows': 3})
         else:
             del self.fields['medical_needs']
 
         #   The unmatched_school field is for students to opt out of selecting a K12School.
         #   If we don't require a K12School to be selected, don't bother showing that field.
-        if not Tag.getBooleanTag('require_school_field'):
+        if not Tag.getBooleanTag('require_school_field') and \
+                not _is_field_explicitly_active('student_profile_active_fields', 'unmatched_school'):
             del self.fields['unmatched_school']
 
         self._user = user
@@ -367,12 +375,16 @@ class TeacherInfoForm(FormWithRequiredCss):
         self.fields['shirt_size'].choices = [('', '')]+[(x.strip(), x.strip()) for x in Tag.getTag('teacher_shirt_sizes').split(',')]
         self.fields['shirt_type'].choices = [('', '')]+[(x.strip(), x.strip()) for x in Tag.getTag('shirt_types').split(',')]
 
-        if not Tag.getBooleanTag('teacherinfo_shirt_options'):
+        if not Tag.getBooleanTag('teacherinfo_shirt_options') and \
+                not _is_field_explicitly_active('teacher_profile_active_fields', 'shirt_size') and \
+                not _is_field_explicitly_active('teacher_profile_active_fields', 'shirt_type'):
             del self.fields['shirt_size']
             del self.fields['shirt_type']
-        elif not Tag.getBooleanTag('teacherinfo_shirt_type_selection'):
+        elif not Tag.getBooleanTag('teacherinfo_shirt_type_selection') and \
+                not _is_field_explicitly_active('teacher_profile_active_fields', 'shirt_type'):
             del self.fields['shirt_type']
-        if not Tag.getBooleanTag('teacher_profile_pronoun_field'):
+        if not Tag.getBooleanTag('teacher_profile_pronoun_field') and \
+                not _is_field_explicitly_active('teacher_profile_active_fields', 'pronoun'):
             del self.fields['pronoun']
 
 
@@ -419,6 +431,24 @@ GuardianInfoForm.base_fields['year_finished'].widget.attrs['size'] = 4
 GuardianInfoForm.base_fields['year_finished'].widget.attrs['maxlength'] = 4
 GuardianInfoForm.base_fields['num_kids'].widget.attrs['size'] = 3
 GuardianInfoForm.base_fields['num_kids'].widget.attrs['maxlength'] = 16
+
+def _is_field_explicitly_active(tag_key, field_name):
+    """Return True if *field_name* is explicitly listed in the *tag_key* active_fields tag.
+
+    Sentinels (_ALL_ / _NONE_) and an unset tag are not considered explicit:
+    only a comma-separated list that names the field counts.  This lets the
+    active_fields selector override legacy boolean gates without affecting the
+    default (_ALL_) behaviour.
+    """
+    value = Tag.getTag(tag_key)
+    if not value or not isinstance(value, str):
+        return False
+    value = value.strip()
+    if value in (ALL_FIELDS, NO_FIELDS) or not value:
+        return False
+    listed = {name.strip().lower() for name in value.split(',') if name.strip()}
+    return field_name.lower() in listed
+
 
 def _remove_inactive_fields(form, tag_key, undeletable_fields):
     """ Drop the optional fields that the *_profile_active_fields tag excludes.

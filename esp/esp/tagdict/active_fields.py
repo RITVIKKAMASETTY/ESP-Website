@@ -34,8 +34,13 @@ LEGACY_TAG_KEYS = {
 
 
 def optional_field_names(form_class):
-    """ Return the declared field names of form_class that are not required. """
-    return {name for name, field in form_class.declared_fields.items()
+    """ Return the field names of form_class that are not required.
+
+    Uses base_fields (rather than declared_fields) so that fields inherited
+    through multiple inheritance—as in all the *ProfileForm classes—are
+    included even though they are not re-declared on the subclass.
+    """
+    return {name for name, field in form_class.base_fields.items()
             if not field.required}
 
 
@@ -46,8 +51,9 @@ def active_fields_form_field(form_class, verbose_name, use_labels=False, extra_f
     from django.contrib.admin.widgets import FilteredSelectMultiple
 
     controllable = optional_field_names(form_class) | set(extra_fields)
+    #   Use base_fields so that inherited fields (profile forms) appear in the selector
     choices = [(name, field.label if use_labels and field.label else name)
-               for name, field in form_class.declared_fields.items()
+               for name, field in form_class.base_fields.items()
                if name in controllable]
     return forms.MultipleChoiceField(
         choices=choices,

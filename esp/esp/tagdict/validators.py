@@ -52,7 +52,11 @@ ALL_FIELD_NAME_TAG_KEYS = frozenset(
 
 
 def get_valid_field_names_for_tag(tag_key):
-    """Return the set of valid (declared) field names for *tag_key*.
+    """Return the set of valid field names for *tag_key*.
+
+    Uses base_fields (rather than declared_fields) so that fields inherited
+    through multiple inheritance—as in all the *ProfileForm classes—are
+    included even though they are not re-declared on the subclass.
 
     Returns ``None`` if *tag_key* is not a recognised field-name tag.
     """
@@ -61,11 +65,11 @@ def get_valid_field_names_for_tag(tag_key):
         config = _PROFILE_FIELD_NAME_TAGS[tag_key]
         module = importlib.import_module(config['module'])
         form_class = getattr(module, config['form_class'])
-        return set(form_class.declared_fields.keys())
+        return set(form_class.base_fields.keys())
 
     if tag_key in (_TEACHERREG_HIDE_FIELDS_TAG, _TEACHERREG_ACTIVE_FIELDS_TAG):
         from esp.program.modules.forms.teacherreg import TeacherClassRegForm
-        return set(TeacherClassRegForm.declared_fields.keys())
+        return set(TeacherClassRegForm.base_fields.keys())
 
     return None
 

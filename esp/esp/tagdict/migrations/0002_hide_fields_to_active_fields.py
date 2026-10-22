@@ -34,8 +34,10 @@ def controllable_fields_by_tag():
     controllable = {}
     for key, (form_class, extra_fields) in forms_by_tag.items():
         names = optional_field_names(form_class) | set(extra_fields)
-        #   Keep declaration order so the stored value matches the settings page
-        controllable[key] = [name for name in form_class.declared_fields if name in names]
+        #   Keep declaration order so the stored value matches the settings page.
+        #   Use base_fields (not declared_fields) so inherited profile form fields
+        #   are included; declared_fields is empty for multiple-inheritance forms.
+        controllable[key] = [name for name in form_class.base_fields if name in names]
     return controllable
 
 

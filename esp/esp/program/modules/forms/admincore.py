@@ -267,6 +267,12 @@ class ProgramTagSettingsForm(BetterForm):
                 if not set_val in ("", "None", None, global_val):
                     # Set a [new] tag if a value was provided and the value is not the default (or if it is but there is also a global tag set)
                     Tag.setTag(key, prog, set_val)
+                elif key in LEGACY_TAG_KEYS and Tag.getTag(LEGACY_TAG_KEYS[key]) is not None:
+                    # A global legacy *_hide_fields tag exists and would act as a fallback
+                    # even after we clear the program-scoped legacy tag above.  Store an
+                    # explicit program-level _ALL_ override so the active-fields selector
+                    # on this program's settings page remains authoritative.
+                    Tag.setTag(key, prog, set_val)
                 else:
                     # Otherwise, delete the old tag, if there is one
                     Tag.unSetTag(key, prog)
